@@ -1,51 +1,70 @@
 package com.rezdy.lunch.service;
 
+import java.time.LocalDate;
+import java.util.List;
+
+import javax.persistence.EntityManager;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.CriteriaQuery;
+import javax.persistence.criteria.Predicate;
+import javax.persistence.criteria.Root;
+import javax.persistence.criteria.Subquery;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.persistence.EntityManager;
-import javax.persistence.criteria.*;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
+import com.rezdy.lunch.entity.RecipeEntity;
+import com.rezdy.lunch.strategy.RecipesSortingStrategy;
 
+/**
+ * A service class for Lunch calculations.
+ * 
+ */
 @Service
 public class LunchService {
 
-    @Autowired
+    private static final String INGREDIENTS_COLUMN_USEBY  = "useBy";
+    private static final String RECIPE_COLUMN_TITLE       = "title";
+    private static final String RECIPE_COLUMN_INGREDIENTS = "ingredients";
+
+	@Autowired
     private EntityManager entityManager;
 
-    private List<Recipe> recipesSorted;
+    @Autowired
+    private RecipesSortingStrategy RecipesSortingStrategy;
 
-    public List<Recipe> getNonExpiredRecipesOnDate(LocalDate date) {
-        List<Recipe> recipes = loadRecipes(date);
-
-        sortRecipes(recipes);
-
-        return recipesSorted;
+    /**
+     * Collects and provides a list with recipes according to the given (prepare) date.
+     * There are only recipes which have no ingredient which use-by date has expired.
+     * Recipes with ingredients, which best-before date is expires are put at the end of the returned list.
+     * @param prepareDate The date
+     * @return A list of recipes with no expired (use-by) ingredients and with expired best-before dates at the end.
+     */
+    public List<RecipeEntity> getNonExpiredRecipesOnDate(final LocalDate prepareDate) {
+        List<RecipeEntity> recipes = loadRecipes(prepareDate);
+        return sortRecipes(recipes, prepareDate);
     }
 
-    private void sortRecipes(List<Recipe> recipes) {
-        recipesSorted = recipes; //TODO sort recipes considering best-before
+    private List<RecipeEntity> loadRecipes(final LocalDate prepareDate) {
+        CriteriaBuilder criteriaBuilder = entityManager.getCriteriaBuilder();
+        CriteriaQuery<RecipeEntity> criteriaQuery = criteriaBuilder.createQuery(RecipeEntity.class);
+        Root<RecipeEntity> recipeRoot = criteriaQuery.from(RecipeEntity.class);
+
+        CriteriaQuery<RecipeEntity> query = criteriaQuery.select(recipeRoot);
+
+        Subquery<RecipeEntity> nonExpiredIngredientSubquery = query.subquery(RecipeEntity.class);
+        Root<RecipeEntity> nonExpiredIngredientRoot = nonExpiredIngredientSubquery.from(RecipeEntity.class);
+        nonExpiredIngredientSubquery.select(nonExpiredIngredientRoot);
+
+        Predicate matchingRecipePredicate = criteriaBuilder.equal(nonExpiredIngredientRoot.get(RECIPE_COLUMN_TITLE), recipeRoot.get(RECIPE_COLUMN_TITLE));
+        Predicate nonExpiredIngredientPredicate = criteriaBuilder.greaterThan(nonExpiredIngredientRoot.join(RECIPE_COLUMN_INGREDIENTS).get(INGREDIENTS_COLUMN_USEBY), prepareDate);
+
+        Predicate allNonExpiredIngredientsPredicate = criteriaBuilder.exists(nonExpiredIngredientSubquery.where(matchingRecipePredicate, nonExpiredIngredientPredicate));
+
+        return entityManager.createQuery(query.where(allNonExpiredIngredientsPredicate)).getResultList();
     }
-
-    public List<Recipe> loadRecipes(LocalDate date) {
-        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-        CriteriaQuery<Recipe> criteriaQuery = cb.createQuery(Recipe.class);
-        Root<Recipe> recipeRoot = criteriaQuery.from(Recipe.class);
-
-        CriteriaQuery<Recipe> query = criteriaQuery.select(recipeRoot);
-
-        Subquery<Recipe> nonExpiredIngredientSubquery = query.subquery(Recipe.class);
-        Root<Recipe> nonExpiredIngredient = nonExpiredIngredientSubquery.from(Recipe.class);
-        nonExpiredIngredientSubquery.select(nonExpiredIngredient);
-
-        Predicate matchingRecipe = cb.equal(nonExpiredIngredient.get("title"), recipeRoot.get("title"));
-        Predicate expiredIngredient = cb.lessThan(nonExpiredIngredient.join("ingredients").get("useBy"), date);
-
-        Predicate allNonExpiredIngredients = cb.exists(nonExpiredIngredientSubquery.where(matchingRecipe, expiredIngredient));
-
-        return entityManager.createQuery(query.where(allNonExpiredIngredients)).getResultList();
+    
+    private List<RecipeEntity> sortRecipes(final List<RecipeEntity> recipes, final LocalDate prepareDate) {
+    	return RecipesSortingStrategy.sort(recipes, prepareDate);
     }
-
 }

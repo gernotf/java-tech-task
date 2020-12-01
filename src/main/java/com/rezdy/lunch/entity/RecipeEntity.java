@@ -1,35 +1,38 @@
-package com.rezdy.lunch.service;
+package com.rezdy.lunch.entity;
 
 import javax.persistence.*;
+
 import java.util.Set;
 
 @Entity
-public class Recipe {
+@Table(name = "recipe")
+public class RecipeEntity {
 
     @Id
+    @Column(name = "TITLE")
     private String title;
 
     @ManyToMany(cascade = CascadeType.ALL)
     @JoinTable(
             name = "recipe_ingredient",
-            joinColumns = @JoinColumn(name = "title"),
+            joinColumns = @JoinColumn(name = "recipe"),
             inverseJoinColumns = @JoinColumn(name = "ingredient"))
-    private Set<Ingredient> ingredients;
-
+    private Set<IngredientEntity> ingredients;
+    
     public String getTitle() {
         return title;
     }
 
-    public Recipe setTitle(String title) {
+    public RecipeEntity setTitle(String title) {
         this.title = title;
         return this;
     }
 
-    public Set<Ingredient> getIngredients() {
+    public Set<IngredientEntity> getIngredients() {
         return ingredients;
     }
 
-    public Recipe setIngredients(Set<Ingredient> ingredients) {
+    public RecipeEntity setIngredients(Set<IngredientEntity> ingredients) {
         this.ingredients = ingredients;
         return this;
     }

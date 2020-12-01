@@ -34,3 +34,25 @@ The service provides an endpoint that will determine, from a set of recipes, wha
     ```
     
 3. Run Springboot LunchApplication
+
+You can start the the Spring Boot App within your IDE.
+Or run it using this command lines in the directory where the pom.xml is located:
+
+    ```
+    mvn clean package
+    ```
+    
+    ```
+    cd target
+    ```
+    
+    ```
+    java -jar java-tech-task-0.0.1-SNAPSHOT.jar
+    ```
+
+4. Use the application
+
+Open a browser window and enter into the address line the following:
+http://localhost:8080/lunch?date=2020-12-01
+
+The parameter 'date' is mandatory and has to conform to the format: 'YYYY-MM-DD'

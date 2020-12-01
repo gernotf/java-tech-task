@@ -31,7 +31,7 @@ CREATE TABLE recipe (
      PRIMARY KEY (TITLE)
 );
 
-INSERT INTO recipe (title) VALUES
+INSERT INTO recipe (TITLE) VALUES
     ('Ham and Cheese Toastie'),
     ('Fry-up'),
     ('Salad'),
